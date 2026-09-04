@@ -21,7 +21,7 @@ pub const Backend = enum {
     pub fn label(self: Backend) []const u8 {
         return switch (self) {
             .zlib => "zlib 1.3.1",
-            .@"zlib-ng" => "zlib-ng 2.2.x (compat)",
+            .@"zlib-ng" => "zlib-ng 2.3.90 (develop 1239e88, compat)",
         };
     }
 };

@@ -2,8 +2,8 @@
 
 用 Zig 构建系统编译 zlib 静态库，支持两种后端：
 
+- **zlib-ng** — [zlib-ng/zlib-ng](https://github.com/zlib-ng/zlib-ng) develop 快照（2.3.90，commit `1239e88`，ZLIB_COMPAT 兼容模式，默认后端）
 - **zlib** — [madler/zlib](https://github.com/madler/zlib) v1.3.1
-- **zlib-ng** — [zlib-ng/zlib-ng](https://github.com/zlib-ng/zlib-ng) v2.2.5（ZLIB_COMPAT 兼容模式）
 
 两种后端均包含 **gzFile API**（`gzopen` / `gzread` / `gzwrite` / `gzclose`）。
 
@@ -39,7 +39,7 @@ test/smoke.c                # compress + gzFile 冒烟测试
 },
 ```
 
-在 `build.zig` 中链接（默认 stock zlib）：
+在 `build.zig` 中链接（默认 zlib-ng，ZLIB_COMPAT 兼容 zlib API，SIMD 开启）：
 
 ```zig
 const zlib_build = b.dependency("zlib_build", .{
@@ -51,13 +51,13 @@ const z = zlib_build.artifact("z");
 exe.root_module.linkLibrary(z);
 ```
 
-选用 zlib-ng 后端：
+选用 stock zlib 后端：
 
 ```zig
 const zlib_build = b.dependency("zlib_build", .{
     .target = target,
     .optimize = optimize,
-    .backend = "zlib-ng",
+    .backend = "zlib",
 });
 ```
 
@@ -65,7 +65,7 @@ const zlib_build = b.dependency("zlib_build", .{
 
 | 选项 | 默认值 | 说明 |
 |------|--------|------|
-| `backend` | `"zlib"` | `"zlib"` 或 `"zlib-ng"` |
+| `backend` | `"zlib-ng"` | `"zlib"` 或 `"zlib-ng"` |
 | `linkage` | `"static"` | `"static"` 或 `"dynamic"` |
 | `symbol_prefix` | `""` | 导出符号前缀，如 `"z_"` 或 `"mylib_"` |
 | `runtime_cpu_detection` | `true` | 运行时 CPU 特性检测 + 多路径 dispatch（zlib-ng） |
@@ -107,7 +107,7 @@ const zlib_build = b.dependency("zlib_build", .{
 > - `simd_level` 仅影响 x86 运行时 dispatch 的上限（累积式：`sse2` ⊂ `avx2` ⊂ `avx512` = `max`）。设为 `generic` 等效于不编译任何架构 SIMD 源文件。
 > - `native_instructions=true` 自动关闭 runtime dispatch，整个库以 `-mcpu=native` 编译；**仅适用于本机默认 target**，不可交叉编译。
 > - `reduced_mem` 设置 `HASH_SIZE=32768`、`GZBUFSIZE=8192`、`NO_LIT_MEM`。
-> - 按 `backend` 懒加载上游源码包：选 `zlib` 时不会 fetch zlib-ng（反之亦然）。
+> - 按 `backend` 懒加载上游源码包：两个后端依赖在 zon 中标记 `.lazy = true`，只有被 `lazyDependency()` 引用的后端才会下载（首次构建会先 fetch 再自动重跑 configure）。`zig build --fetch=all` 可强制全部下载。
 > - 未暴露：`WITH_DFLTCC_*`（IBM Z 专用）、`ZLIB_COMPAT=0`（原生 zlib-ng API，会破坏兼容头）。
 
 ## 优化模式与体积
@@ -130,7 +130,7 @@ MSVC ABI 静态库通常比 GNU 大约 30–40%（COFF 格式、调试节、LTO 
 ## 本地开发
 
 ```powershell
-zig build                                    # 默认 stock zlib，Debug 静态库
+zig build                                    # 默认 zlib-ng（ZLIB_COMPAT + SIMD），Debug 静态库
 zig build -Doptimize=ReleaseFast             # 推荐生产配置
 zig build -Dbackend=zlib-ng                  # zlib-ng（SIMD + runtime 检测）
 zig build -Dlinkage=dynamic                  # 动态库

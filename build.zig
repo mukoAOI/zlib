@@ -6,24 +6,25 @@ pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});
     const options = pkg.Options.fromBuild(b);
 
-    const raw_backend = b.option([]const u8, "backend", "Zlib backend: zlib or zlib-ng") orelse "zlib";
+    const raw_backend = b.option([]const u8, "backend", "Zlib backend: zlib or zlib-ng") orelse "zlib-ng";
     const backend = pkg.Backend.parse(raw_backend) orelse std.debug.panic(
         "invalid -Dbackend value '{s}', expected 'zlib' or 'zlib-ng'",
         .{raw_backend},
     );
 
-    // Only fetch the dependency for the selected backend; the other one stays
-    // unfetched (Zig fetches build.zig.zon dependencies lazily).
-    const dep = switch (backend) {
-        .zlib => b.dependency("zlib", .{
+    // Only the selected backend is fetched (both deps are marked `.lazy` in
+    // build.zig.zon). When the dep is not fetched yet, `lazyDependency` returns
+    // null and the build runner fetches it, then re-runs build.zig.
+    const dep = (switch (backend) {
+        .zlib => b.lazyDependency("zlib", .{
             .target = target,
             .optimize = optimize,
         }),
-        .@"zlib-ng" => b.dependency("zlib_ng", .{
+        .@"zlib-ng" => b.lazyDependency("zlib_ng", .{
             .target = target,
             .optimize = optimize,
         }),
-    };
+    }) orelse return;
 
     const configured = pkg.configure(b, target, optimize, backend, options, dep);
 
