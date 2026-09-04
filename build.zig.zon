@@ -1,6 +1,6 @@
 .{
     .name = .zlib_build,
-    .version = "1.3.1",
+    .version = "0.1.0",
     .fingerprint = 0xed61562fef5fe4e2,
     .minimum_zig_version = "0.16.0",
     .dependencies = .{
