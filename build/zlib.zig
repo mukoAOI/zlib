@@ -77,6 +77,12 @@ pub fn configure(
 
     if (target.result.os.tag == .windows) {
         lib.root_module.addCMacro("WIN32", "1");
+    } else {
+        // Quoted `#include "zconf.h"` in the sources resolves to the pristine
+        // zconf.h in the dependency source root, shadowing the patched one in
+        // install_header_dir. The `#ifdef HAVE_UNISTD_H` gate must therefore
+        // be satisfied via a command-line macro, not the patched header.
+        lib.root_module.addCMacro("HAVE_UNISTD_H", "1");
     }
 
     lib.installHeader(install_header_dir.path(b, "zlib.h"), "zlib.h");
