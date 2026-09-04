@@ -107,7 +107,8 @@ const zlib_build = b.dependency("zlib_build", .{
 > - `simd_level` 仅影响 x86 运行时 dispatch 的上限（累积式：`sse2` ⊂ `avx2` ⊂ `avx512` = `max`）。设为 `generic` 等效于不编译任何架构 SIMD 源文件。
 > - `native_instructions=true` 自动关闭 runtime dispatch，整个库以 `-mcpu=native` 编译；**仅适用于本机默认 target**，不可交叉编译。
 > - `reduced_mem` 设置 `HASH_SIZE=32768`、`GZBUFSIZE=8192`、`NO_LIT_MEM`。
-> - 按 `backend` 懒加载上游源码包：两个后端依赖在 zon 中标记 `.lazy = true`，只有被 `lazyDependency()` 引用的后端才会下载（首次构建会先 fetch 再自动重跑 configure）。`zig build --fetch=all` 可强制全部下载。
+> - 两个上游源码包均为 eager 依赖（拉取 `zlib_build` 时一并下载）。未选用 lazy：嵌套消费方在 configure 阶段调用 `.artifact("z")` 时，Zig 尚不能在「子包 lazy 未就绪」时安全重试，会导致父构建直接 panic。
+> - **TODO（待 Zig 官方修复后启用）**：Zig 修复该 bug 后，在 `build.zig.zon` 两个依赖上加 `.lazy = true`，并将 `build.zig` 中的 `b.dependency()` 换成 `b.lazyDependency()`（返回 `?*Dependency`，`null` 时 `return` 让 build runner fetch 后重跑 configure），即可恢复只下载所选后端的懒加载。
 > - 未暴露：`WITH_DFLTCC_*`（IBM Z 专用）、`ZLIB_COMPAT=0`（原生 zlib-ng API，会破坏兼容头）。
 
 ## 优化模式与体积

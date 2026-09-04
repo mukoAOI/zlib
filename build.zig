@@ -12,19 +12,19 @@ pub fn build(b: *std.Build) void {
         .{raw_backend},
     );
 
-    // Only the selected backend is fetched (both deps are marked `.lazy` in
-    // build.zig.zon). When the dep is not fetched yet, `lazyDependency` returns
-    // null and the build runner fetches it, then re-runs build.zig.
-    const dep = (switch (backend) {
-        .zlib => b.lazyDependency("zlib", .{
+    // Eager deps: nested consumers call `.artifact("z")` during configure. With
+    // `.lazy` + `lazyDependency`/`orelse return`, the artifact is missing on the
+    // first pass and the parent panics before Zig can fetch+retry.
+    const dep = switch (backend) {
+        .zlib => b.dependency("zlib", .{
             .target = target,
             .optimize = optimize,
         }),
-        .@"zlib-ng" => b.lazyDependency("zlib_ng", .{
+        .@"zlib-ng" => b.dependency("zlib_ng", .{
             .target = target,
             .optimize = optimize,
         }),
-    }) orelse return;
+    };
 
     const configured = pkg.configure(b, target, optimize, backend, options, dep);
 
