@@ -1,4 +1,4 @@
-# zlib_build
+# zlib or zlib-ng
 
 用 Zig 构建系统编译 zlib 静态库，支持两种后端：
 
@@ -22,9 +22,13 @@ test/smoke.c                # compress + gzFile 冒烟测试
 .github/workflows/ci.yml    # CI 矩阵
 ```
 
+
+
 ## 要求
 
 - Zig 0.16.0 或更高版本
+
+
 
 ## 作为依赖使用
 
@@ -33,7 +37,7 @@ test/smoke.c                # compress + gzFile 冒烟测试
 ```zon
 .dependencies = .{
     .zlib_build = .{
-        .url = "git+https://github.com/<your-user>/zig-zlib#<commit>",
+        .url = "git+https://github.com/mukoAOI/zig-zlib#0.1.0",
         .hash = "<运行 zig build 后填入>",
     },
 },
@@ -63,16 +67,18 @@ const zlib_build = b.dependency("zlib_build", .{
 
 可选配置：
 
-| 选项 | 默认值 | 说明 |
-|------|--------|------|
-| `backend` | `"zlib-ng"` | `"zlib"` 或 `"zlib-ng"` |
-| `linkage` | `"static"` | `"static"` 或 `"dynamic"` |
-| `symbol_prefix` | `""` | 导出符号前缀，如 `"z_"` 或 `"mylib_"` |
-| `runtime_cpu_detection` | `true` | 运行时 CPU 特性检测 + 多路径 dispatch（zlib-ng） |
-| `native_instructions` | `false` | 编译期绑定本机 ISA（`-mcpu=native`），无 runtime dispatch |
-| `simd_level` | `"max"` | x86 最高 SIMD 层级：`generic` / `sse2` / `avx2` / `avx512` / `max` |
-| `reduced_mem` | `false` | 降低内存占用（`WITH_REDUCED_MEM`，略降性能） |
-| `inflate_strict` | `false` | 严格 inflate 距离检查（`WITH_INFLATE_STRICT`） |
+
+| 选项                      | 默认值         | 说明                                                            |
+| ----------------------- | ----------- | ------------------------------------------------------------- |
+| `backend`               | `"zlib-ng"` | `"zlib"` 或 `"zlib-ng"`                                        |
+| `linkage`               | `"static"`  | `"static"` 或 `"dynamic"`                                      |
+| `symbol_prefix`         | `""`        | 导出符号前缀，如 `"z_"` 或 `"mylib_"`                                  |
+| `runtime_cpu_detection` | `true`      | 运行时 CPU 特性检测 + 多路径 dispatch（zlib-ng）                          |
+| `native_instructions`   | `false`     | 编译期绑定本机 ISA（`-mcpu=native`），无 runtime dispatch                |
+| `simd_level`            | `"max"`     | x86 最高 SIMD 层级：`generic` / `sse2` / `avx2` / `avx512` / `max` |
+| `reduced_mem`           | `false`     | 降低内存占用（`WITH_REDUCED_MEM`，略降性能）                               |
+| `inflate_strict`        | `false`     | 严格 inflate 距离检查（`WITH_INFLATE_STRICT`）                        |
+
 
 ```zig
 const zlib_build = b.dependency("zlib_build", .{
@@ -111,20 +117,24 @@ const zlib_build = b.dependency("zlib_build", .{
 > - **TODO（待 Zig 官方修复后启用）**：Zig 修复该 bug 后，在 `build.zig.zon` 两个依赖上加 `.lazy = true`，并将 `build.zig` 中的 `b.dependency()` 换成 `b.lazyDependency()`（返回 `?*Dependency`，`null` 时 `return` 让 build runner fetch 后重跑 configure），即可恢复只下载所选后端的懒加载。
 > - 未暴露：`WITH_DFLTCC_*`（IBM Z 专用）、`ZLIB_COMPAT=0`（原生 zlib-ng API，会破坏兼容头）。
 
+
+
 ## 优化模式与体积
 
-**生产环境请使用 `-Doptimize=ReleaseFast` 或 `ReleaseSafe`**。默认 Debug 会显著增大静态库体积。
+**生产环境请使用** `-Doptimize=ReleaseFast` **或** `ReleaseSafe`。默认 Debug 会显著增大静态库体积。
 
 zlib-ng 静态库体积参考（x86_64，大致范围，随 CPU / 工具链略有浮动）：
 
-| 配置 | Debug | ReleaseFast |
-|------|-------|-------------|
-| generic（`-Druntime_cpu_detection=false`） | ~200 KB | ~150 KB |
-| native（`-Dnative_instructions=true`） | ~400–700 KB | ~300–500 KB |
-| runtime + `simd_level=sse2` | ~800 KB | ~600 KB |
-| runtime + `simd_level=avx2` | ~1.0 MB | ~800 KB |
-| runtime + `simd_level=max` | ~1.3 MB | ~1.1 MB |
-| dynamic DLL（ReleaseFast, max） | — | ~315 KB |
+
+| 配置                                       | Debug       | ReleaseFast |
+| ---------------------------------------- | ----------- | ----------- |
+| generic（`-Druntime_cpu_detection=false`） | ~200 KB     | ~150 KB     |
+| native（`-Dnative_instructions=true`）     | ~400–700 KB | ~300–500 KB |
+| runtime + `simd_level=sse2`              | ~800 KB     | ~600 KB     |
+| runtime + `simd_level=avx2`              | ~1.0 MB     | ~800 KB     |
+| runtime + `simd_level=max`               | ~1.3 MB     | ~1.1 MB     |
+| dynamic DLL（ReleaseFast, max）            | —           | ~315 KB     |
+
 
 MSVC ABI 静态库通常比 GNU 大约 30–40%（COFF 格式、调试节、LTO 差异）。对比体积时请统一 `optimize` 级别。
 
@@ -148,10 +158,14 @@ zig build test -Dbackend=zlib-ng -Doptimize=ReleaseFast
 
 产物安装到 `zig-out/`：
 
-| 平台 | 静态库 | 动态库 | 头文件 |
-|------|--------|--------|--------|
-| Windows | `zig-out/lib/z.lib` | `zig-out/lib/z.dll` + `z.lib` import | `zig-out/include/zlib.h` 等 |
-| Unix | `zig-out/lib/libz.a` | `zig-out/lib/libz.so` 等 | `zig-out/include/zlib.h` 等 |
+
+| 平台      | 静态库                  | 动态库                                  | 头文件                        |
+| ------- | -------------------- | ------------------------------------ | -------------------------- |
+| Windows | `zig-out/lib/z.lib`  | `zig-out/lib/z.dll` + `z.lib` import | `zig-out/include/zlib.h` 等 |
+| Unix    | `zig-out/lib/libz.a` | `zig-out/lib/libz.so` 等              | `zig-out/include/zlib.h` 等 |
+
+
+
 
 ## CI
 
@@ -162,6 +176,8 @@ GitHub Actions（`.github/workflows/ci.yml`）覆盖：
 - `x86_64-windows-msvc`
 - `native_instructions`（本机路径）
 - `zig build test` 冒烟（含 `compress("hello")` 已知输出与 gzFile 往返）
+
+
 
 ## 许可证
 
